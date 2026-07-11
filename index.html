@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Skill Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0d1a;--sidebar:#11111e;--panel:#16162a;--card:#1e1e35;--card-hover:#252545;
+  --border:#2a2a45;--primary:#7c3aed;--primary-dk:#6d28d9;--primary-lt:#3b1fa8;
+  --text:#e2e8f0;--muted:#8892b0;--dim:#4a4a6a;
+  --editor-bg:#0d1117;--editor-text:#c9d1d9;--ln-bg:#161b22;--ln-text:#4a5568;
+  --success:#22c55e;--error:#ef4444;--warn:#f59e0b;
+  --codex:#7c3aed;--claude:#ea580c;--antigrav:#dc2626;--gemini:#2563eb;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;font-size:13px}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--dim)}
+
+/* ── LAYOUT ── */
+.app{display:grid;grid-template-columns:200px 380px 1fr;height:100vh;overflow:hidden}
+
+/* ── SIDEBAR ── */
+.sidebar{background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-logo{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-text h2{font-size:13px;font-weight:700;color:#fff;line-height:1.2}
+.logo-text p{font-size:10px;color:var(--muted)}
+.sidebar-nav{flex:1;padding:10px 8px;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:7px;cursor:pointer;color:var(--muted);font-size:12px;font-weight:500;transition:all .15s;margin-bottom:2px}
+.nav-item:hover{background:var(--card);color:var(--text)}
+.nav-item.active{background:rgba(124,58,237,.2);color:#a78bfa;border-left:3px solid var(--primary);padding-left:7px}
+.sidebar-footer{padding:12px 8px;border-top:1px solid var(--border)}
+.api-key-section{padding:10px;background:var(--card);border-radius:8px;border:1px solid var(--border)}
+.api-key-section label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px}
+.api-row{display:flex;gap:5px}
+.input-sm{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:11px;color:var(--text);font-family:'Inter',sans-serif;outline:none}
+.input-sm:focus{border-color:var(--primary)}
+.select-sm{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 6px;font-size:10px;color:var(--muted);font-family:'Inter',sans-serif;outline:none;cursor:pointer;margin-bottom:5px;width:100%}
+
+/* ── FORM PANEL ── */
+.form-panel{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.form-hdr{padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.form-hdr h1{font-size:16px;font-weight:700;color:#fff;margin-bottom:2px}
+.form-hdr p{font-size:11px;color:var(--muted)}
+.form-body{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:18px}
+.form-footer{padding:12px 18px;border-top:1px solid var(--border);flex-shrink:0}
+
+.step-label{font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.field-label{font-size:11px;font-weight:500;color:var(--muted);margin-bottom:4px;display:block}
+.field-input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:7px;padding:8px 11px;font-size:12px;color:var(--text);font-family:'Inter',sans-serif;outline:none;transition:border-color .15s}
+.field-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(124,58,237,.15)}
+.field-input::placeholder{color:var(--dim)}
+.field-textarea{resize:none;min-height:68px;line-height:1.5}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* AGENT CARDS */
+.agent-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.agent-card{background:var(--card);border:2px solid var(--border);border-radius:9px;padding:11px 12px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:9px}
+.agent-card:hover{border-color:var(--dim);background:var(--card-hover)}
+.agent-card.selected{border-color:var(--primary);background:rgba(124,58,237,.12)}
+.agent-icon{width:34px;height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;flex-shrink:0;color:#fff}
+.agent-name{font-size:12px;font-weight:600;color:var(--text)}
+.agent-sub{font-size:10px;color:var(--muted);margin-top:1px}
+
+/* STYLE PILLS */
+.style-grid{display:flex;gap:6px;flex-wrap:wrap}
+.style-pill{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:11px;font-weight:500;cursor:pointer;transition:all .15s}
+.style-pill:hover{border-color:var(--primary);color:#a78bfa}
+.style-pill.selected{background:var(--primary);border-color:var(--primary);color:#fff}
+
+/* GENERATE BUTTON */
+.btn-generate{width:100%;padding:11px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;font-family:'Inter',sans-serif;transition:all .15s}
+.btn-generate:hover:not(:disabled){background:var(--primary-dk);transform:translateY(-1px)}
+.btn-generate:disabled{background:var(--border);color:var(--dim);cursor:not-allowed;transform:none}
+.spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── EDITOR PANEL ── */
+.editor-panel{display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.editor-hdr{background:var(--panel);border-bottom:1px solid var(--border);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:48px;flex-shrink:0}
+.editor-tabs{display:flex;gap:2px}
+.ed-tab{padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;display:flex;align-items:center;gap:5px;transition:all .15s}
+.ed-tab:hover{color:var(--text)}
+.ed-tab.active{color:#a78bfa;border-bottom-color:var(--primary)}
+.ed-actions{display:flex;gap:6px}
+.ed-btn{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;border:1px solid var(--border);background:var(--card);color:var(--muted)}
+.ed-btn:hover{border-color:var(--primary);color:#a78bfa}
+.ed-btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.ed-btn.primary:hover{background:var(--primary-dk)}
+
+.editor-body{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.tab-content{flex:1;overflow:hidden;display:none}
+.tab-content.active{display:flex}
+
+/* CODE EDITOR */
+.code-wrap{flex:1;display:flex;overflow:hidden;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6}
+.line-nums{background:var(--ln-bg);color:var(--ln-text);padding:12px 8px 12px 12px;text-align:right;user-select:none;overflow:hidden;white-space:pre;min-width:48px;flex-shrink:0;border-right:1px solid var(--border)}
+.code-editor{flex:1;background:var(--editor-bg);color:var(--editor-text);border:none;outline:none;resize:none;padding:12px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;white-space:pre;overflow:auto;caret-color:#fff}
+
+/* PREVIEW */
+.preview-wrap{flex:1;overflow:auto;padding:24px 28px;background:var(--panel)}
+.preview-wrap h1{font-size:20px;font-weight:700;color:#fff;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.preview-wrap h2{font-size:15px;font-weight:600;color:#a78bfa;margin:18px 0 8px}
+.preview-wrap h3{font-size:13px;font-weight:600;color:var(--text);margin:12px 0 6px}
+.preview-wrap p{color:var(--muted);line-height:1.7;margin-bottom:8px;font-size:13px}
+.preview-wrap ul,.preview-wrap ol{padding-left:18px;color:var(--muted);margin-bottom:8px}
+.preview-wrap li{margin-bottom:3px;font-size:13px;line-height:1.6}
+.preview-wrap code{background:rgba(124,58,237,.2);color:#a78bfa;padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px}
+.preview-wrap pre{background:var(--editor-bg);color:var(--editor-text);padding:12px;border-radius:8px;overflow:auto;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.5}
+.preview-wrap strong{color:var(--text);font-weight:600}
+.preview-wrap em{color:#93c5fd}
+.preview-wrap blockquote{border-left:3px solid var(--primary);padding-left:12px;margin:8px 0;color:var(--muted);font-style:italic}
+.preview-empty{color:var(--dim);font-size:13px;text-align:center;padding:3rem;font-style:italic}
+
+/* EDITOR STATUS BAR */
+.status-bar{background:var(--primary-lt);border-top:1px solid var(--primary);padding:3px 16px;display:flex;align-items:center;gap:16px;font-size:10px;color:#a78bfa;flex-shrink:0}
+
+/* EMPTY STATE */
+.editor-empty{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--dim)}
+.editor-empty svg{opacity:.3}
+.editor-empty p{font-size:13px}
+.editor-empty small{font-size:11px;color:var(--dim)}
+
+/* HISTORY */
+.hist-section{padding:10px 8px}
+.hist-item{padding:8px 10px;border-radius:7px;border:1px solid var(--border);background:var(--card);margin-bottom:5px;cursor:pointer;transition:all .12s}
+.hist-item:hover{border-color:var(--primary);background:var(--card-hover)}
+.hist-role{font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px}
+.hist-meta{display:flex;align-items:center;gap:6px}
+.hist-agent-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.hist-info{font-size:10px;color:var(--muted)}
+.hist-empty{font-size:11px;color:var(--dim);text-align:center;padding:16px;font-style:italic}
+
+/* TOAST */
+.toast{position:fixed;bottom:16px;right:16px;background:var(--card);border:1px solid var(--primary);border-radius:8px;padding:10px 16px;font-size:12px;font-weight:500;z-index:999;transform:translateY(60px);opacity:0;transition:all .3s;color:var(--text)}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.err{border-color:var(--error);background:#1a0a0a}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<div class="app">
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg width="16" height="16" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0112 0v2"/><circle cx="19" cy="12" r="2.5" fill="white" stroke="none"/></svg>
+    </div>
+    <div class="logo-text"><h2>AI Agent</h2><p>Skill Generator</p></div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-item active" onclick="showView('generator')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+      Generator
+    </div>
+    <div class="nav-item" onclick="showView('history')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+      History
+    </div>
+    <div id="histSection" style="display:none">
+      <div class="hist-section" id="histList"></div>
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="api-key-section">
+      <label>API Settings</label>
+      <select class="select-sm" id="apiProvider" onchange="saveSettings()">
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Anthropic</option>
+      </select>
+      <div class="api-row">
+        <input type="password" class="input-sm" id="apiKey" placeholder="API Key..." oninput="saveSettings()">
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ── FORM PANEL ── -->
+<main class="form-panel">
+  <div class="form-hdr">
+    <h1>Generate Agent Skill</h1>
+    <p>Create high-quality agent skills for your AI coding agents.</p>
+  </div>
+
+  <div class="form-body">
+
+    <!-- Step 1: Agent -->
+    <div>
+      <div class="step-label">1. Choose AI Agent</div>
+      <div class="agent-grid">
+        <div class="agent-card selected" onclick="selectAgent('codex',this)" data-agent="codex">
+          <div class="agent-icon" style="background:var(--codex);font-size:13px">&gt;_</div>
+          <div><div class="agent-name">Codex</div><div class="agent-sub">OpenAI</div></div>
+        </div>
+        <div class="agent-card" onclick="selectAgent('claude',this)" data-agent="claude">
+          <div class="agent-icon" style="background:var(--claude)">
+            <svg width="16" height="16" fill="white" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          </div>
+          <div><div class="agent-name">Claude Code</div><div class="agent-sub">Anthropic</div></div>
+        </div>
+        <div class="agent-card" onclick="selectAgent('antigrav',this)" data-agent="antigrav">
+          <div class="agent-icon" style="background:var(--antigrav)">
+            <svg width="16" height="16" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><polygon points="12,2 22,22 2,22"/></svg>
+          </div>
+          <div><div class="agent-name">Antigravity</div><div class="agent-sub">Coding Agent</div></div>
+        </div>
+        <div class="agent-card" onclick="selectAgent('gemini',this)" data-agent="gemini">
+          <div class="agent-icon" style="background:var(--gemini)">
+            <svg width="16" height="16" fill="white" viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+          </div>
+          <div><div class="agent-name">Gemini CLI</div><div class="agent-sub">Google</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Project -->
+    <div>
+      <div class="step-label">2. Project Info</div>
+      <div class="field-row" style="margin-bottom:8px">
+        <div>
+          <label class="field-label">Project Name</label>
+          <input class="field-input" id="projectName" placeholder="e.g. AI SaaS Starter" maxlength="60">
+        </div>
+        <div>
+          <label class="field-label">Tech Stack</label>
+          <input class="field-input" id="techStack" placeholder="e.g. Next.js, Supabase" maxlength="80">
+        </div>
+      </div>
+      <label class="field-label">Project Description</label>
+      <textarea class="field-input field-textarea" id="projectDesc" placeholder="Describe what this project does and its goals..." maxlength="400"></textarea>
+    </div>
+
+    <!-- Step 3: Role -->
+    <div>
+      <div class="step-label">3. Agent Role</div>
+      <label class="field-label">Role Title</label>
+      <input class="field-input" id="roleTitle" placeholder="e.g. Senior Full Stack Developer" style="margin-bottom:8px" maxlength="80">
+      <label class="field-label">Key Responsibilities</label>
+      <textarea class="field-input field-textarea" id="roleResp" placeholder="What should this agent focus on? What decisions should it make?" maxlength="400"></textarea>
+    </div>
+
+    <!-- Step 4: Style -->
+    <div>
+      <div class="step-label">4. Output Style</div>
+      <div class="style-grid">
+        <div class="style-pill selected" onclick="selectStyle('detailed',this)">📋 Detailed</div>
+        <div class="style-pill" onclick="selectStyle('concise',this)">⚡ Concise</div>
+        <div class="style-pill" onclick="selectStyle('structured',this)">🗂 Structured</div>
+        <div class="style-pill" onclick="selectStyle('strict',this)">🔒 Strict Rules</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="form-footer">
+    <button class="btn-generate" id="genBtn" onclick="generateSkill()">
+      <svg width="14" height="14" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+      Generate Skill
+    </button>
+  </div>
+</main>
+
+<!-- ── EDITOR PANEL ── -->
+<div class="editor-panel">
+  <div class="editor-hdr">
+    <div class="editor-tabs">
+      <div class="ed-tab active" onclick="switchEdTab('generated',this)">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="16,18 22,12 16,6"/><polyline points="8,6 2,12 8,18"/></svg>
+        Generated Skill
+      </div>
+      <div class="ed-tab" onclick="switchEdTab('preview',this)">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Preview
+      </div>
+      <div class="ed-tab" onclick="switchEdTab('raw',this)">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Raw
+      </div>
+    </div>
+    <div class="ed-actions">
+      <button class="ed-btn" onclick="copySkill()">
+        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        Copy
+      </button>
+      <button class="ed-btn" onclick="downloadSkill()">
+        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download
+      </button>
+      <button class="ed-btn primary" onclick="saveSkill()">
+        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
+        Save
+      </button>
+    </div>
+  </div>
+
+  <div class="editor-body">
+    <!-- Empty state -->
+    <div class="editor-empty" id="editorEmpty">
+      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+      <p>No skill generated yet</p>
+      <small>Fill in the form and click Generate Skill</small>
+    </div>
+
+    <!-- Generated / Raw tab -->
+    <div class="tab-content" id="tab-generated" style="flex-direction:column">
+      <div class="code-wrap" id="codeWrap">
+        <div class="line-nums" id="lineNums">1</div>
+        <textarea class="code-editor" id="skillEditor" spellcheck="false" oninput="onEditorInput()" onscroll="syncScroll()"></textarea>
+      </div>
+    </div>
+
+    <!-- Preview tab -->
+    <div class="tab-content" id="tab-preview">
+      <div class="preview-wrap" id="previewWrap">
+        <div class="preview-empty">Generate a skill to see the preview here.</div>
+      </div>
+    </div>
+
+    <!-- Raw tab -->
+    <div class="tab-content" id="tab-raw">
+      <div class="code-wrap">
+        <div class="line-nums" id="rawLineNums">1</div>
+        <pre class="code-editor" id="rawView" style="overflow:auto;white-space:pre-wrap;word-break:break-word"></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar" id="statusBar" style="display:none">
+    <span id="statusLines">0 lines</span>
+    <span>·</span>
+    <span id="statusWords">0 words</span>
+    <span>·</span>
+    <span id="statusChars">0 chars</span>
+    <span style="margin-left:auto" id="statusAgent">—</span>
+  </div>
+</div>
+
+</div>
+
+<script>
+const AGENTS = {
+  codex:    { name:'Codex',       color:'#7c3aed', sub:'OpenAI' },
+  claude:   { name:'Claude Code', color:'#ea580c', sub:'Anthropic' },
+  antigrav: { name:'Antigravity', color:'#dc2626', sub:'Agent' },
+  gemini:   { name:'Gemini CLI',  color:'#2563eb', sub:'Google' }
+};
+
+const STYLE_GUIDES = {
+  detailed:   'Create a comprehensive, highly detailed skill file with extensive context, examples, and explanations for each section.',
+  concise:    'Create a concise, focused skill file. Use bullet points. Prioritize clarity and brevity over length.',
+  structured: 'Create a strictly structured skill file with clear numbered sections, tables where appropriate, and consistent formatting.',
+  strict:     'Create a rule-focused skill file with explicit DO and DON\'T sections, strict constraints, and enforcement guidelines.'
+};
+
+const SYSTEM_PROMPT = `You are an expert AI agent skill engineer. Your job is to create professional, structured skill definition files (.md format) for AI coding agents.
+
+A skill file defines how an AI coding agent should behave, what it knows, and how it works within a specific software project. The file should be practical, specific, and immediately useful.
+
+Always output clean markdown with no preamble or explanation—just the skill file content starting with the # header.`;
+
+let selectedAgent = 'codex';
+let selectedStyle = 'detailed';
+let activeTab = 'generated';
+let genHistory = [];
+let currentSkill = '';
+let currentMeta = null;
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded', () => {
+  loadSettings();
+  loadHistory();
+  renderHistory();
+});
+
+// ── VIEWS ──
+function showView(view) {
+  document.querySelectorAll('.nav-item').forEach((el,i) => {
+    el.classList.toggle('active', el.textContent.trim().toLowerCase().startsWith(view));
+  });
+  document.getElementById('histSection').style.display = view === 'history' ? 'block' : 'none';
+}
+
+// ── AGENT SELECT ──
+function selectAgent(id, el) {
+  selectedAgent = id;
+  document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// ── STYLE SELECT ──
+function selectStyle(id, el) {
+  selectedStyle = id;
+  document.querySelectorAll('.style-pill').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// ── EDITOR TABS ──
+function switchEdTab(tab, el) {
+  activeTab = tab;
+  document.querySelectorAll('.ed-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+
+  const ids = ['generated','preview','raw'];
+  ids.forEach(id => {
+    const el = document.getElementById('tab-'+id);
+    if (el) el.classList.toggle('active', id === tab);
+  });
+
+  if (tab === 'generated') {
+    document.getElementById('tab-generated').style.display = 'flex';
+    document.getElementById('tab-preview').style.display = 'none';
+    document.getElementById('tab-raw').style.display = 'none';
+  } else if (tab === 'preview') {
+    document.getElementById('tab-generated').style.display = 'none';
+    document.getElementById('tab-preview').style.display = 'flex';
+    document.getElementById('tab-raw').style.display = 'none';
+    updatePreview();
+  } else {
+    document.getElementById('tab-generated').style.display = 'none';
+    document.getElementById('tab-preview').style.display = 'none';
+    document.getElementById('tab-raw').style.display = 'flex';
+    updateRaw();
+  }
+}
+
+// ── EDITOR UTILS ──
+function onEditorInput() {
+  currentSkill = document.getElementById('skillEditor').value;
+  updateLineNumbers();
+  updateStatus();
+}
+
+function updateLineNumbers() {
+  const editor = document.getElementById('skillEditor');
+  const lines = (editor.value || '').split('\n').length;
+  const nums = Array.from({length:lines},(_,i)=>i+1).join('\n');
+  document.getElementById('lineNums').textContent = nums;
+}
+
+function syncScroll() {
+  const editor = document.getElementById('skillEditor');
+  const lineNums = document.getElementById('lineNums');
+  lineNums.scrollTop = editor.scrollTop;
+}
+
+function updateStatus() {
+  const text = currentSkill;
+  const lines = text.split('\n').length;
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const chars = text.length;
+  document.getElementById('statusLines').textContent = `${lines} lines`;
+  document.getElementById('statusWords').textContent = `${words} words`;
+  document.getElementById('statusChars').textContent = `${chars} chars`;
+  if (currentMeta) document.getElementById('statusAgent').textContent = `${AGENTS[currentMeta.agent]?.name} · ${currentMeta.role}`;
+}
+
+function updatePreview() {
+  const md = document.getElementById('skillEditor').value;
+  document.getElementById('previewWrap').innerHTML = md ? renderMarkdown(md) : '<div class="preview-empty">Generate a skill to see the preview here.</div>';
+}
+
+function updateRaw() {
+  const text = document.getElementById('skillEditor').value;
+  document.getElementById('rawView').textContent = text;
+  const lines = text.split('\n').length;
+  document.getElementById('rawLineNums').textContent = Array.from({length:lines},(_,i)=>i+1).join('\n');
+}
+
+function renderMarkdown(md) {
+  return md
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/^```[\w]*\n?([\s\S]*?)```$/gm, '<pre>$1</pre>')
+    .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+    .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
+    .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
+    .replace(/\n\n+/g, '\n')
+    .split('\n').map(line => {
+      if (line.match(/^<[hupblcoq]/)) return line;
+      if (line.trim() === '') return '';
+      return `<p>${line}</p>`;
+    }).join('\n');
+}
+
+// ── GENERATE ──
+async function generateSkill() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const provider = document.getElementById('apiProvider').value;
+  const projectName = document.getElementById('projectName').value.trim();
+  const projectDesc = document.getElementById('projectDesc').value.trim();
+  const roleTitle = document.getElementById('roleTitle').value.trim();
+  const roleResp = document.getElementById('roleResp').value.trim();
+  const techStack = document.getElementById('techStack').value.trim();
+
+  if (!apiKey) { showToast('Enter your API key in the sidebar settings', true); return; }
+  if (!projectName) { showToast('Enter a project name', true); return; }
+  if (!roleTitle) { showToast('Enter an agent role title', true); return; }
+
+  const agentName = AGENTS[selectedAgent].name;
+  const styleGuide = STYLE_GUIDES[selectedStyle];
+
+  const userPrompt = `Generate a complete skill file for an AI coding agent with these details:
+
+AI Coding Agent: ${agentName}
+Skill/Role Title: ${roleTitle}
+Project Name: ${projectName}
+Project Description: ${projectDesc || 'Not provided'}
+Key Responsibilities: ${roleResp || 'Not specified'}
+Tech Stack: ${techStack || 'Not specified'}
+Output Style: ${selectedStyle.charAt(0).toUpperCase()+selectedStyle.slice(1)} — ${styleGuide}
+
+Structure the file with these sections:
+1. Identity — who the agent is and their expertise
+2. Responsibilities — specific tasks and scope
+3. Technical Context — project details, tech stack, architecture notes
+4. Working Style — approach to problems, communication, code quality standards
+5. Code Standards — conventions, patterns, naming, structure
+6. Rules — explicit DO and DON'T constraints
+7. Success Criteria — what good output looks like
+
+Start with exactly: # ${agentName} Skill: ${roleTitle}`;
+
+  setLoading(true);
+
+  try {
+    let result;
+    if (provider === 'openai') {
+      result = await callOpenAI(apiKey, userPrompt);
+    } else {
+      result = await callAnthropic(apiKey, userPrompt);
+    }
+
+    setSkill(result, { agent: selectedAgent, role: roleTitle, project: projectName });
+    saveToHistory({ agent:selectedAgent, role:roleTitle, project:projectName, tech:techStack, skill:result, ts:Date.now() });
+    showToast('Skill generated successfully');
+
+  } catch(e) {
+    showToast(e.message, true);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function callOpenAI(apiKey, prompt) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+apiKey },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role:'system', content: SYSTEM_PROMPT },
+        { role:'user',   content: prompt }
+      ],
+      max_tokens: 2500,
+      temperature: 0.7
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error('OpenAI: ' + (err.error?.message || res.status));
+  }
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
+
+async function callAnthropic(apiKey, prompt) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type':'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2500,
+      system: SYSTEM_PROMPT,
+      messages: [{ role:'user', content: prompt }]
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error('Anthropic: ' + (err.error?.message || res.status));
+  }
+  const data = await res.json();
+  return data.content[0].text;
+}
+
+function setSkill(text, meta) {
+  currentSkill = text;
+  currentMeta = meta;
+  document.getElementById('skillEditor').value = text;
+  document.getElementById('editorEmpty').style.display = 'none';
+  document.getElementById('tab-generated').style.display = 'flex';
+  document.getElementById('statusBar').style.display = 'flex';
+  updateLineNumbers();
+  updateStatus();
+  if (activeTab === 'preview') updatePreview();
+  if (activeTab === 'raw') updateRaw();
+}
+
+function setLoading(on) {
+  const btn = document.getElementById('genBtn');
+  btn.disabled = on;
+  btn.innerHTML = on
+    ? '<div class="spinner"></div> Generating...'
+    : '<svg width="14" height="14" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg> Generate Skill';
+}
+
+// ── ACTIONS ──
+function copySkill() {
+  if (!currentSkill) { showToast('Nothing to copy yet', true); return; }
+  navigator.clipboard.writeText(currentSkill).then(() => showToast('Copied to clipboard'));
+}
+
+function downloadSkill() {
+  if (!currentSkill) { showToast('Nothing to download yet', true); return; }
+  const agent = AGENTS[selectedAgent]?.name || 'agent';
+  const role = document.getElementById('roleTitle').value.trim() || 'skill';
+  const name = `${agent.toLowerCase().replace(/\s+/g,'-')}-${role.toLowerCase().replace(/\s+/g,'-')}.md`;
+  const blob = new Blob([currentSkill], { type:'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+  showToast('Downloaded ' + name);
+}
+
+function saveSkill() {
+  if (!currentSkill) { showToast('Nothing to save yet', true); return; }
+  if (currentMeta) {
+    saveToHistory({ ...currentMeta, skill: currentSkill, ts: Date.now() });
+    showToast('Saved to history');
+  }
+}
+
+// ── HISTORY ──
+function saveToHistory(entry) {
+  genHistory = genHistory.filter(h => !(h.agent === entry.agent && h.role === entry.role && h.project === entry.project));
+  genHistory.unshift(entry);
+  if (genHistory.length > 20) genHistory = genHistory.slice(0, 20);
+  try { localStorage.setItem('skill-gen-history', JSON.stringify(genHistory)); } catch(e) {}
+  renderHistory();
+}
+
+function loadHistory() {
+  try {
+    const s = localStorage.getItem('skill-gen-history');
+    if (s) genHistory = JSON.parse(s);
+  } catch(e) { genHistory = []; }
+}
+
+function renderHistory() {
+  const el = document.getElementById('histList');
+  if (!genHistory.length) {
+    el.innerHTML = '<div class="hist-empty">No generations yet.</div>';
+    return;
+  }
+  el.innerHTML = genHistory.map((h,i) => `
+    <div class="hist-item" onclick="loadFromHistory(${i})">
+      <div class="hist-role">${escHtml(h.role || 'Untitled')}</div>
+      <div class="hist-meta">
+        <span class="hist-agent-dot" style="background:${AGENTS[h.agent]?.color||'#7c3aed'}"></span>
+        <span class="hist-info">${AGENTS[h.agent]?.name||h.agent} · ${escHtml(h.project||'Project')} · ${timeAgo(h.ts)}</span>
+      </div>
+    </div>`).join('');
+}
+
+function loadFromHistory(i) {
+  const h = genHistory[i];
+  if (!h) return;
+  document.getElementById('projectName').value = h.project || '';
+  document.getElementById('roleTitle').value = h.role || '';
+  document.getElementById('techStack').value = h.tech || '';
+  selectAgent(h.agent, document.querySelector(`[data-agent="${h.agent}"]`));
+  setSkill(h.skill, { agent:h.agent, role:h.role, project:h.project });
+  showView('generator');
+  showToast('Loaded from history');
+}
+
+// ── SETTINGS ──
+function saveSettings() {
+  try {
+    localStorage.setItem('skill-gen-provider', document.getElementById('apiProvider').value);
+    localStorage.setItem('skill-gen-key', document.getElementById('apiKey').value);
+  } catch(e) {}
+}
+
+function loadSettings() {
+  try {
+    const p = localStorage.getItem('skill-gen-provider');
+    const k = localStorage.getItem('skill-gen-key');
+    if (p) document.getElementById('apiProvider').value = p;
+    if (k) document.getElementById('apiKey').value = k;
+  } catch(e) {}
+}
+
+// ── TOAST ──
+function showToast(msg, err=false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (err?' err':'');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => el.className='toast', 3000);
+}
+
+// ── UTILS ──
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function timeAgo(ts){
+  const s = Math.floor((Date.now()-ts)/1000);
+  if(s<60) return 'just now';
+  if(s<3600) return Math.floor(s/60)+'m ago';
+  if(s<86400) return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+</script>
+</body>
+</html>
